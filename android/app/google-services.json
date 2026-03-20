@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "412220027812",
+    "project_id": "dataloot-archive",
+    "storage_bucket": "dataloot-archive.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:412220027812:android:1e9df40fb70165892d8731",
+        "android_client_info": {
+          "package_name": "com.example.dataloot_archive"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCZeRQ6N1q1KkIlSfNaZzyYsVRXHfdtJOM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
