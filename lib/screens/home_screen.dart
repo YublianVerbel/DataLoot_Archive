@@ -17,7 +17,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Stream<List<Noticia>> _getNoticias() {
     Query query = FirebaseFirestore.instance
         .collection('noticias')
-        .orderBy('publishedAt', descending: true)
+        .orderBy('timestamp', descending: true)
         .limit(50);
 
     if (_filtroFuente != 'Todas') {
