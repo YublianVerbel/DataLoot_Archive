@@ -15,14 +15,18 @@ class _HomeScreenState extends State<HomeScreen> {
   String _filtroFuente = 'Todas';
   late Future<List<Noticia>> _noticiasFuture;
 
-  // ⚠️ Reemplaza esto con la URL de tu Webhook de N8N
   static const String _webhookUrl =
-      'https://tu-n8n.app.n8n.cloud/webhook/noticias';
+      'https://bread12.app.n8n.cloud/webhook/noticias';
 
   final List<String> _fuentes = [
-    'Todas', 'Vandal', 'Eurogamer', 'Gamespot', 'Kotaku', 'PCGamer'
+    'Todas',
+    'Eurogamer',
+    'HobbyConsolas',
+    'Gamespot',
+    'Kotaku',
+    'PCGamer',
+    'Vandal',
   ];
-
   @override
   void initState() {
     super.initState();
@@ -31,20 +35,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<List<Noticia>> _getNoticias() async {
     try {
-      final uri = _filtroFuente != 'Todas'
-          ? Uri.parse('$_webhookUrl?source=$_filtroFuente')
-          : Uri.parse(_webhookUrl);
+      // Construye la URL con o sin filtro
+      String url = _webhookUrl;
+      if (_filtroFuente != 'Todas') {
+        url = '$_webhookUrl?source=$_filtroFuente';
+      }
 
-      final response = await http.get(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .get(Uri.parse(url), headers: {'Content-Type': 'application/json'})
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        return data
-            .map((item) => Noticia.fromFirestore(
-                item as Map<String, dynamic>, item['id'] ?? ''))
+        final body = response.body.trim();
+        if (body.isEmpty) return [];
+
+        final dynamic decoded = json.decode(body);
+        if (decoded is! List) return [];
+
+        return decoded
+            .whereType<Map>()
+            .map((item) {
+              final map = item as Map<String, dynamic>;
+              // Firestore devuelve _id en vez de id
+              final id = map['_id'] ?? map['id'] ?? '';
+              return Noticia.fromFirestore(map, id);
+            })
+            .where((n) => n.title.isNotEmpty)
             .toList();
       } else {
         throw Exception('Error del servidor: ${response.statusCode}');
@@ -151,12 +167,22 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline,
-                            color: Colors.red, size: 48),
+                        const Icon(
+                          Icons.error_outline,
+                          color: Colors.red,
+                          size: 48,
+                        ),
                         const SizedBox(height: 16),
-                        const Text(
-                          'Error al cargar noticias',
-                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text(
+                            snapshot.error.toString(),
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 12,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         ElevatedButton.icon(
