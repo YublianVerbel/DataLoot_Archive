@@ -25,15 +25,15 @@ class Noticia {
 
   factory Noticia.fromFirestore(Map<String, dynamic> data, String id) {
     return Noticia(
-      id:          id,
-      title:       data['title']       ?? '',
-      url:         data['url']         ?? '',
-      summary:     data['summary']     ?? '',
-      imageUrl:    data['imageUrl']    ?? '',
-      source:      data['source']      ?? '',
-      platform:    data['platform']    ?? '',
-      categories:  data['categories']  ?? '',
-      author:      data['author']      ?? '',
+      id: id,
+      title: data['title'] ?? '',
+      url: data['url'] ?? '',
+      summary: data['summary'] ?? '',
+      imageUrl: data['imageUrl'] ?? '',
+      source: data['source'] ?? '',
+      platform: data['platform'] ?? '',
+      categories: data['categories'] ?? '',
+      author: data['author'] ?? '',
       publishedAt: data['publishedAt'] ?? '',
     );
   }
