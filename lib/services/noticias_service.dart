@@ -4,7 +4,7 @@ import '../models/noticia.dart';
 
 class NoticiasService {
   static const String _webhookUrl =
-      'https://tu-n8n.app.n8n.cloud/webhook/noticias';
+      'https://bread12.app.n8n.cloud/webhook/noticias';
 
   Future<List<Noticia>> getNoticias({String? source}) async {
     try {
