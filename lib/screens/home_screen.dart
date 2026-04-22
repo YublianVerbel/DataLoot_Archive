@@ -1,3 +1,4 @@
+import 'package:dataloot_archive/screens/notificaciones_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -97,6 +98,17 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificacionesScreen()),
+              );
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
