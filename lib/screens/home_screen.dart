@@ -1,9 +1,9 @@
-import 'package:dataloot_archive/screens/notificaciones_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/noticia.dart';
 import '../widgets/noticia_card.dart';
+import 'notificaciones_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,6 +19,11 @@ class _HomeScreenState extends State<HomeScreen> {
   static const String _webhookUrl =
       'https://bread12.app.n8n.cloud/webhook/noticias';
 
+  // Cache local
+  static final Map<String, List<Noticia>> _cache = {};
+  static final Map<String, DateTime> _cacheTime = {};
+  static const Duration _cacheDuration = Duration(minutes: 5);
+
   final List<String> _fuentes = [
     'Todas',
     'Eurogamer',
@@ -28,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
     'PCGamer',
     'Vandal',
   ];
+
   @override
   void initState() {
     super.initState();
@@ -35,45 +41,86 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<List<Noticia>> _getNoticias() async {
-    try {
-      // Construye la URL con o sin filtro
-      String url = _webhookUrl;
-      if (_filtroFuente != 'Todas') {
-        url = '$_webhookUrl?source=$_filtroFuente';
+    // Verifica si hay cache valido
+    final cacheKey = _filtroFuente;
+    final ahora = DateTime.now();
+
+    if (_cache.containsKey(cacheKey) && _cacheTime.containsKey(cacheKey)) {
+      final tiempoCache = _cacheTime[cacheKey]!;
+      if (ahora.difference(tiempoCache) < _cacheDuration) {
+        return _cache[cacheKey]!;
       }
-
-      final response = await http
-          .get(Uri.parse(url), headers: {'Content-Type': 'application/json'})
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final body = response.body.trim();
-        if (body.isEmpty) return [];
-
-        final dynamic decoded = json.decode(body);
-        if (decoded is! List) return [];
-
-        return decoded
-            .whereType<Map>()
-            .map((item) {
-              final map = item as Map<String, dynamic>;
-              // Firestore devuelve _id en vez de id
-              final id = map['_id'] ?? map['id'] ?? '';
-              return Noticia.fromFirestore(map, id);
-            })
-            .where((n) => n.title.isNotEmpty)
-            .toList();
-      } else {
-        throw Exception('Error del servidor: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('No se pudo conectar con N8N: $e');
     }
+
+    int intentos = 0;
+    const maxIntentos = 2;
+
+    while (intentos < maxIntentos) {
+      try {
+        intentos++;
+        String url = _webhookUrl;
+        if (_filtroFuente != 'Todas') {
+          url = '$_webhookUrl?source=$_filtroFuente';
+        }
+
+        final response = await http
+            .get(
+              Uri.parse(url),
+              headers: {'Content-Type': 'application/json'},
+            )
+            .timeout(const Duration(seconds: 30));
+
+        if (response.statusCode == 200) {
+          final body = response.body.trim();
+          if (body.isEmpty) return [];
+
+          final dynamic decoded = json.decode(body);
+          if (decoded is! List) return [];
+
+          final noticias = decoded
+              .where((item) => item is Map)
+              .map((item) {
+                final map = item as Map<String, dynamic>;
+                final id = map['_id'] ?? map['id'] ?? '';
+                return Noticia.fromFirestore(map, id);
+              })
+              .where((n) => n.title.isNotEmpty)
+              .toList();
+
+          // Guarda en cache
+          _cache[cacheKey] = noticias;
+          _cacheTime[cacheKey] = ahora;
+
+          return noticias;
+        } else {
+          throw Exception('Error del servidor: ${response.statusCode}');
+        }
+      } catch (e) {
+        if (intentos >= maxIntentos) {
+          // Si hay cache aunque sea viejo, usalo
+          if (_cache.containsKey(cacheKey)) {
+            return _cache[cacheKey]!;
+          }
+          throw Exception('No se pudo conectar con N8N');
+        }
+        await Future.delayed(const Duration(seconds: 5));
+      }
+    }
+    return [];
   }
 
   void _cambiarFuente(String fuente) {
     setState(() {
       _filtroFuente = fuente;
+      _noticiasFuture = _getNoticias();
+    });
+  }
+
+  void _refrescarForzado() {
+    // Limpia el cache de la fuente actual y recarga
+    _cache.remove(_filtroFuente);
+    _cacheTime.remove(_filtroFuente);
+    setState(() {
       _noticiasFuture = _getNoticias();
     });
   }
@@ -100,11 +147,18 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: _refrescarForzado,
+            tooltip: 'Actualizar noticias',
+          ),
+          IconButton(
             icon: const Icon(Icons.notifications_outlined, color: Colors.white),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const NotificacionesScreen()),
+                MaterialPageRoute(
+                  builder: (_) => const NotificacionesScreen(),
+                ),
               );
             },
           ),
@@ -166,7 +220,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         SizedBox(height: 16),
                         Text(
                           'Cargando noticias...',
-                          style: TextStyle(color: Colors.grey),
+                          style: TextStyle(color: Colors.grey, fontSize: 14),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Esto puede tardar unos segundos',
+                          style: TextStyle(color: Colors.grey, fontSize: 12),
                         ),
                       ],
                     ),
@@ -180,29 +239,36 @@ class _HomeScreenState extends State<HomeScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Icon(
-                          Icons.error_outline,
+                          Icons.wifi_off_rounded,
                           color: Colors.red,
                           size: 48,
                         ),
                         const SizedBox(height: 16),
-                        Padding(
-                          padding: const EdgeInsets.all(16),
+                        const Text(
+                          'Error al cargar noticias',
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        ),
+                        const SizedBox(height: 8),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 32),
                           child: Text(
-                            snapshot.error.toString(),
-                            style: const TextStyle(
-                              color: Colors.red,
-                              fontSize: 12,
-                            ),
+                            'Verifica tu conexion a internet e intenta de nuevo',
+                            style: TextStyle(color: Colors.grey, fontSize: 12),
                             textAlign: TextAlign.center,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 16),
                         ElevatedButton.icon(
-                          onPressed: () => _cambiarFuente(_filtroFuente),
+                          onPressed: _refrescarForzado,
                           icon: const Icon(Icons.refresh),
                           label: const Text('Reintentar'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF6C63FF),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
                           ),
                         ),
                       ],
@@ -213,10 +279,31 @@ class _HomeScreenState extends State<HomeScreen> {
                 // Sin datos
                 final noticias = snapshot.data ?? [];
                 if (noticias.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'No hay noticias aún',
-                      style: TextStyle(color: Colors.grey),
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.newspaper_outlined,
+                          color: Colors.grey,
+                          size: 48,
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'No hay noticias disponibles',
+                          style: TextStyle(color: Colors.grey, fontSize: 16),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _refrescarForzado,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Recargar'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF6C63FF),
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   );
                 }
@@ -224,7 +311,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 // Lista con pull to refresh
                 return RefreshIndicator(
                   color: const Color(0xFF6C63FF),
-                  onRefresh: () async => _cambiarFuente(_filtroFuente),
+                  onRefresh: () async => _refrescarForzado(),
                   child: ListView.builder(
                     padding: const EdgeInsets.all(12),
                     itemCount: noticias.length,
