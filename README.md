@@ -22,7 +22,6 @@ El backend está completamente automatizado con **N8N Cloud**, que se encarga de
 - 🔔 Notificaciones push por revista (el usuario elige a cuáles suscribirse)
 - ⚡ Caché local de 5 minutos para evitar saturación del servidor
 - 🔄 Pull-to-refresh para actualizar manualmente
-- 🌙 Tema oscuro con estética gamer
 
 ---
 
@@ -122,7 +121,7 @@ Cada 30 minutos N8N genera un JWT firmado con la service account de Firebase, ob
 
 | Tecnologia | Uso |
 |---|---|
-| Flutter 3.x | Framework de desarrollo movil |
+| Flutter  | Framework de desarrollo movil |
 | Dart | Lenguaje de programacion |
 | Firebase Firestore | Base de datos en tiempo real |
 | Firebase Cloud Messaging (FCM V1) | Notificaciones push |
