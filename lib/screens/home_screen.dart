@@ -17,7 +17,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late Future<List<Noticia>> _noticiasFuture;
 
   static const String _webhookUrl =
-      'https://bread12.app.n8n.cloud/webhook/noticias';
+      'https://breadpal.app.n8n.cloud/webhook/noticias';
 
   // Cache local
   static final Map<String, List<Noticia>> _cache = {};
